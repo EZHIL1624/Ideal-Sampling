@@ -1,64 +1,93 @@
 # Ideal, Natural, & Flat-top -Sampling
+---
 # Aim
 Write a simple Python program for the construction and reconstruction of ideal, natural, and flattop sampling.
+
 # Tools required
-GOOGLE COLLAB
+Personel Computer
+
+Python IDLE
+
+# Theory
+
+### Ideal or Instantaneous or Impulse Sampling:
+sampling signal is a periodic impulse train. The area of each impulse in the sampled signal is equal to the instantaneous value of the input signal.
+
+### Natural Sampling:
+Natural sampling is also called practical sampling. In this sampling technique, the sampling signal is a pulse train.
+In natural sampling method, the top of each pulse in the sampled signal retains the shape of the input signal during pulse interval.
+
+### Flat Top Sampling:
+The flat top sampling is also the practical sampling technique. In the flat top sampling, the sampling signal is also a pulse train. The top of each pulse in the sampled signal remain constant and is equal to the instantaneous value of the input signal 𝑥(𝑛) at the start of the samples.
+
 # Program
-## Impulse sampling
+
+### Ideal Sampling
 ```
-Impulse sampling
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.signal import resample
 
-fs, T, f = 100, 1, 5
-t = np.arange(0, T, 1/fs)
-signal = np.sin(2*np.pi*f*t)
+fs, f = 100, 5
+t = np.arange(0, 1, 1/fs)
+sig = np.sin(2*np.pi*f*t)
 
-plt.plot(t, signal); plt.title("Continuous"); plt.grid(); plt.show()
+plt.figure(figsize=(10,4))
+markerline, stemlines, baseline = plt.stem(t, sig, label='Sampled Signal (fs=100Hz)')
+plt.setp(stemlines, color='red', linewidth=0.8)
+plt.setp(markerline, color='red', markersize=3)
 
-plt.stem(t, signal)
-plt.title("Sampled"); plt.grid(); plt.show()
-
-recon = resample(signal, len(t))
-plt.plot(t, recon); plt.title("Reconstructed"); plt.grid(); plt.show()
+plt.title('Sampling of Continuous Signal (fs = 100 Hz)')
+plt.xlabel('Time [s]')
+plt.ylabel('Amplitude')
+plt.legend(loc='upper right')
+plt.grid()
+plt.show()
 ```
-## Natural sampling
+
+### Natural Sampling
 ```
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.signal import butter, lfilter
 
-fs, T, fm, pr = 1000, 1, 5, 50
-t = np.arange(0, T, 1/fs)
+fs=1000
+T=1
+fm=5
+pr = 50
 
+t = np.arange(0, T, 1/fs)
 msg = np.sin(2*np.pi*fm*t)
 
-pulse = np.zeros_like(t)
-w, step = int(fs/pr/2), int(fs/pr)
-for i in range(0, len(t), step):
-    pulse[i:i+w] = 1
+idx = np.arange(0, len(t), fs//pr)
+pw = fs//(2*pr)
 
-sampled = msg * pulse
+pulse_train = np.zeros_like(t)
+for i in idx:
+    pulse_train[i:i+pw] = 1.0         
 
-def lp(x, c): 
-    b, a = butter(5, c/(0.5*fs), 'low')
-    return lfilter(b, a, x)
+ns = np.zeros_like(t)
+for i in idx:
+    ns[i:i+pw] = msg[i:i+pw]
 
-recon = lp(sampled, 10)
+def lpf(sig, cut):
+    b, a = butter(5, cut/(0.5*fs), 'low')
+    return lfilter(b, a, sig)
 
-titles = ["Original", "Pulse Train", "Natural Sampling", "Reconstructed"]
-signals = [msg, pulse, sampled, recon]
+rec = lpf(ns, fm+2)
 
-for i, s in enumerate(signals, 1):
-    plt.subplot(4,1,i)
-    plt.plot(t, s)
-    plt.title(titles[i-1])
+fig, ax = plt.subplots(4, 1, figsize=(10,8))
+for a, y, lbl in zip(ax,
+    [msg, pulse_train, ns, rec],
+    ['Original Message Signal', 'Pulse Train', 'Natural Sampling', 'Reconstructed Message Signal']):
+    a.plot(t, y, label=lbl)
+    a.legend()
+    a.grid()
 
 plt.tight_layout()
 plt.show()
 ```
-## Flat top sampling
+
+### Flat Top Sampling
 ```
 import numpy as np
 import matplotlib.pyplot as plt
@@ -68,49 +97,44 @@ fs, T, fm, pr = 1000, 1, 5, 50
 t = np.arange(0, T, 1/fs)
 msg = np.sin(2*np.pi*fm*t)
 
-idx = np.arange(0, len(t), int(fs/pr))
-flat = np.zeros_like(t)
-w = int(fs/(2*pr))
-
+idx = np.arange(0, len(t), fs//pr)
+pw = fs//(2*pr)
+ft = np.zeros_like(t)
 for i in idx:
-    flat[i:i+w] = msg[i]
+    ft[i:i+pw] = msg[i]
 
-def lp(x, c):
-    b, a = butter(5, c/(0.5*fs), 'low')
-    return lfilter(b, a, x)
+def lpf(sig, cut):
+    b, a = butter(5, cut/(0.5*fs), 'low')
+    return lfilter(b, a, sig)
 
-rec = lp(flat, 10)
+rec = lpf(ft, fm+2)
 
-titles = ["Original", "Sampling Points", "Flat-Top", "Reconstructed"]
-signals = [msg, np.zeros_like(t), flat, rec]
+fig, ax = plt.subplots(4, 1, figsize=(10,8))
 
-for i, s in enumerate(signals, 1):
-    plt.subplot(4,1,i)
-    if i == 2:
-        plt.stem(t[idx], np.ones_like(idx))
+signals = [msg, np.ones(len(idx)), ft, rec]
+labels  = ['Original Message Signal', 'Ideal Sampling Instances', 'Flat-Top Sampled Signal', 'Reconstructed Signal']
+colors  = ['blue', 'blue', 'blue', 'green']
+
+for i, (a, y, lbl, col) in enumerate(zip(ax, signals, labels, colors)):
+    if i == 1:
+        markerline, stemlines, baseline = a.stem(t[idx], y, label=lbl)
     else:
-        plt.plot(t, s)
-    plt.title(titles[i-1])
+        a.plot(t, y, label=lbl, color=col)
+    a.legend(); a.grid()
 
 plt.tight_layout()
 plt.show()
 ```
 # Output Waveform
-
-## Ideal sampling
-
-<img width="568" height="435" alt="impulse sampling" src="https://github.com/user-attachments/assets/ed94e70a-dc64-496b-a5f1-d4c381f48135" />
+### Ideal Sampling Waveform
+<img width="948" height="451" alt="impulse_output" src="https://github.com/user-attachments/assets/7cb0e898-5bed-4097-ad94-a8450925931b" />
 
 
-## Natural sampling
+### Natural Sampling Waveform
+<img width="948" height="451" alt="natural_output" src="https://github.com/user-attachments/assets/b0ec3a06-9b5b-48fa-8839-1f56b95f0fa3" />
 
-<img width="989" height="790" alt="natural sampling" src="https://github.com/user-attachments/assets/478400df-9368-43cf-b399-dfb6162f33e0" />
+### Flat Top Sampling Waveform
+<img width="948" height="451" alt="flat_top_output" src="https://github.com/user-attachments/assets/224d4ce5-e7e8-40b0-9b73-4c88becaf4e6" />
 
-## Flat top sampling
-
-<img width="989" height="790" alt="flat top" src="https://github.com/user-attachments/assets/90897af2-4321-4666-b8b9-ef6699dad0b1" />
-
-# Results
-
+# Result
 Thus, the construction and reconstruction of Ideal, Natural, and Flat-top sampling were successfully implemented using Python, and the corresponding waveforms were obtained.
-
